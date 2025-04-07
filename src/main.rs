@@ -1,5 +1,5 @@
 use iced::{
-    Element, Sandbox, Settings,
+    Element, Sandbox, Settings, Theme,
     widget::{container, text_editor},
 };
 
@@ -21,7 +21,7 @@ impl Sandbox for Editor {
 
     fn new() -> Self {
         Self {
-            content: text_editor::Content::new(),
+            content: text_editor::Content::with(include_str!("main.rs")),
         }
     }
 
@@ -40,5 +40,9 @@ impl Sandbox for Editor {
     fn view(&self) -> Element<'_, Message> {
         let input = text_editor(&self.content).on_edit(Message::Edit);
         container(input).padding(10).into()
+    }
+
+    fn theme(&self) -> Theme {
+        Theme::Dark
     }
 }
