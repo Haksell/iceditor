@@ -1,5 +1,5 @@
 [package]
-name = "text_editor"
+name = "iceditor"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,4 +8,5 @@ edition = "2024"
 iced = { git = "https://github.com/iced-rs/iced.git", rev = "refs/tags/text-editor", features = [
     "debug",
 ] }
+rfd = "0.12"
 tokio = { version = "1.32", features = ["fs"] }
