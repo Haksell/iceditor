@@ -1,14 +1,13 @@
 use {
     iced::{
-        Application, Command, Element, Font, Settings, Subscription, Theme, executor,
-        highlighter::{self, Highlighter},
-        keyboard, theme,
+        Element, Font, Length, Task, Theme, highlighter, keyboard,
         widget::{
             button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
         },
     },
     rfd::AsyncFileDialog,
     std::{
+        ffi::OsStr,
         io,
         path::{Path, PathBuf},
         sync::Arc,
@@ -16,11 +15,11 @@ use {
 };
 
 fn main() -> iced::Result {
-    Editor::run(Settings {
-        // TODO: default_font: Font::MONOSPACE,
-        fonts: vec![include_bytes!("../iceditor.ttf").as_slice().into()],
-        ..Settings::default()
-    })
+    iced::application("iceditor", Editor::update, Editor::view)
+        .theme(Editor::theme)
+        .font(include_bytes!("../iceditor.ttf").as_slice())
+        // .default_font(Font::MONOSPACE)
+        .run_with(Editor::new)
 }
 
 #[derive(Debug, Clone)]
@@ -48,13 +47,8 @@ struct Editor {
     is_dirty: bool,
 }
 
-impl Application for Editor {
-    type Executor = executor::Default;
-    type Flags = ();
-    type Message = Message;
-    type Theme = Theme;
-
-    fn new(_: Self::Flags) -> (Self, Command<Message>) {
+impl Editor {
+    fn new() -> (Self, Task<Message>) {
         let editor = Self {
             path: None,
             content: text_editor::Content::new(),
@@ -62,16 +56,12 @@ impl Application for Editor {
             theme: highlighter::Theme::SolarizedDark,
             is_dirty: true,
         };
-        let command = Command::perform(load_file(default_file()), Message::FileOpened);
+        let command = Task::perform(load_file(default_file()), Message::FileOpened);
 
         (editor, command)
     }
 
-    fn title(&self) -> String {
-        String::from("A cool editor!")
-    }
-
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::New => {
                 self.path = None;
@@ -84,7 +74,7 @@ impl Application for Editor {
                 self.content.perform(action);
             }
             Message::Open => {
-                return Command::perform(pick_file(), Message::FileOpened);
+                return Task::perform(pick_file(), Message::FileOpened);
             }
             Message::FileOpened(Ok((path, content))) => {
                 self.path = Some(path);
@@ -94,7 +84,7 @@ impl Application for Editor {
             Message::FileOpened(Err(err)) => self.error = Some(err),
             Message::Save => {
                 let text = self.content.text();
-                return Command::perform(save_file(self.path.clone(), text), Message::FileSaved);
+                return Task::perform(save_file(self.path.clone(), text), Message::FileSaved);
             }
             Message::FileSaved(Ok(path)) => {
                 self.path = Some(path);
@@ -104,14 +94,7 @@ impl Application for Editor {
             Message::ThemeSelected(theme) => self.theme = theme,
         }
 
-        Command::none()
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        keyboard::on_key_press(|key_code, modifiers| match key_code.as_ref() {
-            keyboard::Key::Character("s") if modifiers.command() => Some(Message::Save),
-            _ => None,
-        })
+        Task::none()
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -133,19 +116,22 @@ impl Application for Editor {
         .spacing(10);
 
         let input = text_editor(&self.content)
+            .height(Length::Fill)
             .on_action(Message::Edit)
-            .highlight::<Highlighter>(
-                highlighter::Settings {
-                    theme: self.theme,
-                    extension: self
-                        .path
-                        .as_ref()
-                        .and_then(|path| path.extension()?.to_str())
-                        .unwrap_or("rs")
-                        .to_string(),
-                },
-                |highlight, _| highlight.to_format(),
-            );
+            .highlight(
+                self.path
+                    .as_deref()
+                    .and_then(Path::extension)
+                    .and_then(OsStr::to_str)
+                    .unwrap_or("rs"),
+                self.theme,
+            )
+            .key_binding(|key_press| match key_press.key.as_ref() {
+                keyboard::Key::Character("s") if key_press.modifiers.command() => {
+                    Some(text_editor::Binding::Custom(Message::Save))
+                }
+                _ => text_editor::Binding::from_key_press(key_press),
+            });
 
         let status_bar = {
             let status = if let Some(Error::IoFailed(error)) = self.error.as_ref() {
@@ -180,24 +166,21 @@ impl Application for Editor {
 fn action_button<'a>(
     content: Element<'a, Message>,
     label: &'a str,
-    on_press_maybe: Option<Message>,
+    on_press: Option<Message>,
 ) -> Element<'a, Message> {
-    let is_disabled = on_press_maybe.is_none();
+    let action = button(container(content).center_x(30));
 
-    tooltip(
-        button(container(content).width(30).center_x())
-            .on_press_maybe(on_press_maybe)
-            .padding([5, 10])
-            .style(if is_disabled {
-                theme::Button::Secondary
-            } else {
-                theme::Button::Primary
-            }),
-        label,
-        tooltip::Position::FollowCursor,
-    )
-    .style(theme::Container::Box)
-    .into()
+    if let Some(on_press) = on_press {
+        tooltip(
+            action.on_press(on_press),
+            label,
+            tooltip::Position::FollowCursor,
+        )
+        .style(container::rounded_box)
+        .into()
+    } else {
+        action.style(button::secondary).into()
+    }
 }
 
 fn icon<'a>(codepoint: char) -> Element<'a, Message> {
