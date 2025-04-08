@@ -3,7 +3,9 @@ use {
         Application, Command, Element, Font, Length, Settings, Theme, executor,
         highlighter::{self, Highlighter},
         theme,
-        widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip},
+        widget::{
+            button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
+        },
     },
     std::{
         io,
@@ -28,6 +30,7 @@ enum Message {
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
     Save,
     FileSaved(Result<PathBuf, Error>),
+    ThemeSelected(highlighter::Theme),
 }
 
 #[derive(Debug, Clone)]
@@ -40,6 +43,7 @@ struct Editor {
     path: Option<PathBuf>,
     content: text_editor::Content,
     error: Option<Error>,
+    theme: highlighter::Theme,
 }
 
 impl Application for Editor {
@@ -53,6 +57,7 @@ impl Application for Editor {
             path: None,
             content: text_editor::Content::new(),
             error: None,
+            theme: highlighter::Theme::SolarizedDark,
         };
         let command = Command::perform(load_file(default_file()), Message::FileOpened);
 
@@ -80,19 +85,14 @@ impl Application for Editor {
                 self.path = Some(path);
                 self.content = text_editor::Content::with(&content);
             }
-            Message::FileOpened(Err(err)) => {
-                self.error = Some(err);
-            }
+            Message::FileOpened(Err(err)) => self.error = Some(err),
             Message::Save => {
                 let text = self.content.text();
                 return Command::perform(save_file(self.path.clone(), text), Message::FileSaved);
             }
-            Message::FileSaved(Ok(path)) => {
-                self.path = Some(path);
-            }
-            Message::FileSaved(Err(err)) => {
-                self.error = Some(err);
-            }
+            Message::FileSaved(Ok(path)) => self.path = Some(path),
+            Message::FileSaved(Err(err)) => self.error = Some(err),
+            Message::ThemeSelected(theme) => self.theme = theme,
         }
 
         Command::none()
@@ -103,6 +103,12 @@ impl Application for Editor {
             action_button(new_icon(), "New file", Message::New),
             action_button(open_icon(), "Open file", Message::Open),
             action_button(save_icon(), "Save file", Message::Save),
+            horizontal_space(Length::Fill),
+            pick_list(
+                highlighter::Theme::ALL,
+                Some(self.theme),
+                Message::ThemeSelected
+            )
         ]
         .spacing(10);
 
@@ -110,7 +116,7 @@ impl Application for Editor {
             .on_edit(Message::Edit)
             .highlight::<Highlighter>(
                 highlighter::Settings {
-                    theme: highlighter::Theme::SolarizedDark,
+                    theme: self.theme,
                     extension: self
                         .path
                         .as_ref()
@@ -143,7 +149,11 @@ impl Application for Editor {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Dark
+        if self.theme.is_dark() {
+            Theme::Dark
+        } else {
+            Theme::Light
+        }
     }
 }
 
