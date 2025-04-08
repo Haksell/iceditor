@@ -1,7 +1,7 @@
 use {
     iced::{
-        Application, Command, Element, Font, Length, Settings, Theme, executor,
-        widget::{button, column, container, horizontal_space, row, text, text_editor},
+        Application, Command, Element, Font, Length, Settings, Theme, executor, theme,
+        widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip},
     },
     std::{
         io,
@@ -12,6 +12,7 @@ use {
 
 fn main() -> iced::Result {
     Editor::run(Settings {
+        // default_font: Font::MONOSPACE,
         fonts: vec![include_bytes!("../iceditor.ttf").as_slice().into()],
         ..Settings::default()
     })
@@ -97,9 +98,9 @@ impl Application for Editor {
 
     fn view(&self) -> Element<'_, Message> {
         let controls = row![
-            action_button(new_icon(), Message::New),
-            action_button(open_icon(), Message::Open),
-            action_button(save_icon(), Message::Save),
+            action_button(new_icon(), "New file", Message::New),
+            action_button(open_icon(), "Open file", Message::Open),
+            action_button(save_icon(), "Save file", Message::Save),
         ]
         .spacing(10);
 
@@ -131,11 +132,20 @@ impl Application for Editor {
     }
 }
 
-fn action_button<'a>(content: Element<'a, Message>, on_press: Message) -> Element<'a, Message> {
-    button(container(content).width(30).center_x())
-        .on_press(on_press)
-        .padding([5, 10])
-        .into()
+fn action_button<'a>(
+    content: Element<'a, Message>,
+    label: &str,
+    on_press: Message,
+) -> Element<'a, Message> {
+    tooltip(
+        button(container(content).width(30).center_x())
+            .on_press(on_press)
+            .padding([5, 10]),
+        label,
+        tooltip::Position::FollowCursor,
+    )
+    .style(theme::Container::Box)
+    .into()
 }
 
 fn icon<'a>(codepoint: char) -> Element<'a, Message> {
