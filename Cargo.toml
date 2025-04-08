@@ -11,4 +11,4 @@ iced = { git = "https://github.com/iced-rs/iced.git", rev = "refs/tags/text-edit
     "tokio",
 ] }
 rfd = "0.12"
-tokio = { version = "1.32", features = ["fs"] }
+tokio = { version = "1.44", features = ["fs"] }
