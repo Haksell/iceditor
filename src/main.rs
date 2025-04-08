@@ -1,6 +1,6 @@
 use {
     iced::{
-        Application, Command, Element, Font, Length, Settings, Subscription, Theme, executor,
+        Application, Command, Element, Font, Settings, Subscription, Theme, executor,
         highlighter::{self, Highlighter},
         keyboard, theme,
         widget::{
@@ -81,14 +81,14 @@ impl Application for Editor {
             Message::Edit(action) => {
                 self.is_dirty = self.is_dirty || action.is_edit();
                 self.error = None;
-                self.content.edit(action);
+                self.content.perform(action);
             }
             Message::Open => {
                 return Command::perform(pick_file(), Message::FileOpened);
             }
             Message::FileOpened(Ok((path, content))) => {
                 self.path = Some(path);
-                self.content = text_editor::Content::with(&content);
+                self.content = text_editor::Content::with_text(&content);
                 self.is_dirty = false;
             }
             Message::FileOpened(Err(err)) => self.error = Some(err),
@@ -108,8 +108,8 @@ impl Application for Editor {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        keyboard::on_key_press(|key_code, modifiers| match key_code {
-            keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
+        keyboard::on_key_press(|key_code, modifiers| match key_code.as_ref() {
+            keyboard::Key::Character("s") if modifiers.command() => Some(Message::Save),
             _ => None,
         })
     }
@@ -123,7 +123,7 @@ impl Application for Editor {
                 "Save file",
                 self.is_dirty.then_some(Message::Save)
             ),
-            horizontal_space(Length::Fill),
+            horizontal_space(),
             pick_list(
                 highlighter::Theme::ALL,
                 Some(self.theme),
@@ -133,7 +133,7 @@ impl Application for Editor {
         .spacing(10);
 
         let input = text_editor(&self.content)
-            .on_edit(Message::Edit)
+            .on_action(Message::Edit)
             .highlight::<Highlighter>(
                 highlighter::Settings {
                     theme: self.theme,
@@ -160,7 +160,7 @@ impl Application for Editor {
                 let (line, column) = self.content.cursor_position();
                 text(format!("{}:{}", line + 1, column + 1))
             };
-            row![status, horizontal_space(Length::Fill), position]
+            row![status, horizontal_space(), position]
         };
 
         container(column![controls, input, status_bar].spacing(10))
@@ -179,7 +179,7 @@ impl Application for Editor {
 
 fn action_button<'a>(
     content: Element<'a, Message>,
-    label: &str,
+    label: &'a str,
     on_press_maybe: Option<Message>,
 ) -> Element<'a, Message> {
     let is_disabled = on_press_maybe.is_none();

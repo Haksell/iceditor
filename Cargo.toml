@@ -3,12 +3,7 @@ name = "iceditor"
 version = "0.1.0"
 edition = "2024"
 
-# TODO: update dependencies
 [dependencies]
-iced = { git = "https://github.com/iced-rs/iced.git", rev = "refs/tags/text-editor", features = [
-    "debug",
-    "highlighter",
-    "tokio",
-] }
+iced = { version = "0.12", features = ["debug", "highlighter", "tokio"] }
 rfd = "0.15"
 tokio = { version = "1.44", features = ["fs"] }
