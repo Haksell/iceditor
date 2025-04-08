@@ -16,7 +16,7 @@ use {
 
 fn main() -> iced::Result {
     Editor::run(Settings {
-        // default_font: Font::MONOSPACE,
+        // TODO: default_font: Font::MONOSPACE,
         fonts: vec![include_bytes!("../iceditor.ttf").as_slice().into()],
         ..Settings::default()
     })
