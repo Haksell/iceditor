@@ -7,6 +7,7 @@ use {
             button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
         },
     },
+    rfd::AsyncFileDialog,
     std::{
         io,
         path::{Path, PathBuf},
@@ -222,7 +223,7 @@ fn default_file() -> PathBuf {
 }
 
 async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
-    let handle = rfd::AsyncFileDialog::new()
+    let handle = AsyncFileDialog::new()
         .set_title("Choose a text file...")
         .pick_file()
         .await
@@ -242,7 +243,7 @@ async fn save_file(path: Option<PathBuf>, text: String) -> Result<PathBuf, Error
     let path = if let Some(path) = path {
         path
     } else {
-        rfd::AsyncFileDialog::new()
+        AsyncFileDialog::new()
             .set_title("Choose a file name...")
             .save_file()
             .await
