@@ -44,6 +44,7 @@ struct Editor {
     content: text_editor::Content,
     error: Option<Error>,
     theme: highlighter::Theme,
+    is_dirty: bool,
 }
 
 impl Application for Editor {
@@ -58,6 +59,7 @@ impl Application for Editor {
             content: text_editor::Content::new(),
             error: None,
             theme: highlighter::Theme::SolarizedDark,
+            is_dirty: true,
         };
         let command = Command::perform(load_file(default_file()), Message::FileOpened);
 
@@ -73,10 +75,12 @@ impl Application for Editor {
             Message::New => {
                 self.path = None;
                 self.content = text_editor::Content::new();
+                self.is_dirty = true;
             }
             Message::Edit(action) => {
-                self.content.edit(action);
+                self.is_dirty = self.is_dirty || action.is_edit();
                 self.error = None;
+                self.content.edit(action);
             }
             Message::Open => {
                 return Command::perform(pick_file(), Message::FileOpened);
@@ -84,13 +88,17 @@ impl Application for Editor {
             Message::FileOpened(Ok((path, content))) => {
                 self.path = Some(path);
                 self.content = text_editor::Content::with(&content);
+                self.is_dirty = false;
             }
             Message::FileOpened(Err(err)) => self.error = Some(err),
             Message::Save => {
                 let text = self.content.text();
                 return Command::perform(save_file(self.path.clone(), text), Message::FileSaved);
             }
-            Message::FileSaved(Ok(path)) => self.path = Some(path),
+            Message::FileSaved(Ok(path)) => {
+                self.path = Some(path);
+                self.is_dirty = false;
+            }
             Message::FileSaved(Err(err)) => self.error = Some(err),
             Message::ThemeSelected(theme) => self.theme = theme,
         }
@@ -100,9 +108,13 @@ impl Application for Editor {
 
     fn view(&self) -> Element<'_, Message> {
         let controls = row![
-            action_button(new_icon(), "New file", Message::New),
-            action_button(open_icon(), "Open file", Message::Open),
-            action_button(save_icon(), "Save file", Message::Save),
+            action_button(new_icon(), "New file", Some(Message::New)),
+            action_button(open_icon(), "Open file", Some(Message::Open)),
+            action_button(
+                save_icon(),
+                "Save file",
+                self.is_dirty.then_some(Message::Save)
+            ),
             horizontal_space(Length::Fill),
             pick_list(
                 highlighter::Theme::ALL,
@@ -160,12 +172,19 @@ impl Application for Editor {
 fn action_button<'a>(
     content: Element<'a, Message>,
     label: &str,
-    on_press: Message,
+    on_press_maybe: Option<Message>,
 ) -> Element<'a, Message> {
+    let is_disabled = on_press_maybe.is_none();
+
     tooltip(
         button(container(content).width(30).center_x())
-            .on_press(on_press)
-            .padding([5, 10]),
+            .on_press_maybe(on_press_maybe)
+            .padding([5, 10])
+            .style(if is_disabled {
+                theme::Button::Secondary
+            } else {
+                theme::Button::Primary
+            }),
         label,
         tooltip::Position::FollowCursor,
     )
