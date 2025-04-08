@@ -1,8 +1,8 @@
 use {
     iced::{
-        Application, Command, Element, Font, Length, Settings, Theme, executor,
+        Application, Command, Element, Font, Length, Settings, Subscription, Theme, executor,
         highlighter::{self, Highlighter},
-        theme,
+        keyboard, theme,
         widget::{
             button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
         },
@@ -104,6 +104,13 @@ impl Application for Editor {
         }
 
         Command::none()
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        keyboard::on_key_press(|key_code, modifiers| match key_code {
+            keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
+            _ => None,
+        })
     }
 
     fn view(&self) -> Element<'_, Message> {
