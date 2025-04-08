@@ -1,6 +1,8 @@
 use {
     iced::{
-        Application, Command, Element, Font, Length, Settings, Theme, executor, theme,
+        Application, Command, Element, Font, Length, Settings, Theme, executor,
+        highlighter::{self, Highlighter},
+        theme,
         widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip},
     },
     std::{
@@ -104,7 +106,20 @@ impl Application for Editor {
         ]
         .spacing(10);
 
-        let input = text_editor(&self.content).on_edit(Message::Edit);
+        let input = text_editor(&self.content)
+            .on_edit(Message::Edit)
+            .highlight::<Highlighter>(
+                highlighter::Settings {
+                    theme: highlighter::Theme::SolarizedDark,
+                    extension: self
+                        .path
+                        .as_ref()
+                        .and_then(|path| path.extension()?.to_str())
+                        .unwrap_or("rs")
+                        .to_string(),
+                },
+                |highlight, _| highlight.to_format(),
+            );
 
         let status_bar = {
             let status = if let Some(Error::IoFailed(error)) = self.error.as_ref() {
